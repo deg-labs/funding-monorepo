@@ -1,0 +1,5 @@
+server/data
+server/logs
+client/ncmma/data
+client/ncmma/logs
+client/ncmma/cache
