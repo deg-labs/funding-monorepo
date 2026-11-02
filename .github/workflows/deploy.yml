@@ -1,0 +1,81 @@
+name: deploy-to-gce
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Deployment environment
+        required: true
+        type: choice
+        options:
+          - dev
+          - stg
+          - prd
+        default: prd
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    if: |
+      github.event_name != 'pull_request' ||
+      (github.event.action == 'labeled' &&
+       (github.event.label.name == 'dev' || github.event.label.name == 'stg'))
+    uses: deg-labs/github-workflows/.github/workflows/gce-deploy.yml@main
+    permissions:
+      contents: read
+      id-token: write
+    secrets: inherit
+    with:
+      checkout_submodules: true
+      enforce_deploy_team: true
+      deploy_team_slug: deg-develop
+      environment_name: >-
+        ${{
+          github.event_name == 'pull_request' && github.event.label.name ||
+          github.event_name == 'workflow_dispatch' && inputs.environment ||
+          'prd'
+        }}
+      app_env_secret: >-
+        ${{
+          (github.event_name == 'pull_request' && github.event.label.name == 'dev' ||
+           github.event_name == 'workflow_dispatch' && inputs.environment == 'dev') && 'DEV_APP_ENV' ||
+          (github.event_name == 'pull_request' && github.event.label.name == 'stg' ||
+           github.event_name == 'workflow_dispatch' && inputs.environment == 'stg') && 'STG_APP_ENV' ||
+          'PRD_APP_ENV'
+        }}
+      artifact_excludes: |
+        server/data
+        server/logs
+        client/ncmma/data
+        client/ncmma/logs
+        client/ncmma/cache
+      additional_upload_files: |
+        .env
+      prepare_command: |
+        set -euo pipefail
+        # reusable workflow 側で push された main の github.sha を checkout 済みです。
+        git submodule update --init --recursive
+        printf '%s\n' "${APP_ENV}" > .env
+      remote_deploy_command: |
+        set -e
+        TARGET_DIR='/opt/apps/funding-monorepo'
+        sudo rm -rf "$TARGET_DIR"
+        sudo mkdir -p "$TARGET_DIR"
+        sudo chown -R "$(id -u):$(id -g)" "$TARGET_DIR"
+        tar -xzf ~/app.tar.gz -C "$TARGET_DIR"
+        mv -f ~/.env "$TARGET_DIR/.env"
+        cd "$TARGET_DIR"
+        sudo docker compose down
+        sudo docker compose up -d --build
+        sudo docker image prune -f || true
