@@ -1,0 +1,6 @@
+[submodule "server"]
+	path = server
+	url = git@github.com:deg-labs/funding-cmma-go.git
+[submodule "client"]
+	path = client
+	url = git@github.com:deg-labs/funding-ncmma.git
