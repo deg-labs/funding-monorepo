@@ -94,6 +94,8 @@ funding-monorepo/
 
 ## デプロイ
 
+GitHub ActionsでGCEへデプロイするための**初回設定、環境別のSecrets（`DEV_*` / `STG_*` / `PRD_*`、`*_APP_ENV`、GitHub App）、WIF、Environment保護、実行・障害対応**は [CI/CD デプロイ設定ガイド](docs/DEPLOYMENT.md) を参照してください。
+
 `main` への push、または GitHub Actions の手動実行で GCE インスタンスへデプロイします。
 
 - `dev` と `stg` はプルリクエストへのラベル付与でデプロイできます。
